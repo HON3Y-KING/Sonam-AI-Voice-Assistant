@@ -1,4 +1,4 @@
-name: Build Sonam APK
+namename: Build Sonam APK
 
 on:
   workflow_dispatch:
@@ -25,21 +25,81 @@ jobs:
           mkdir project
           unzip -q Sonam-AI-Voice-Assistant-starter.zip -d project
 
-      - name: Fix Java and Kotlin JVM targets
+      - name: Fix Android project
         run: |
-          cd project
           python3 - <<'PY'
           from pathlib import Path
 
-          p = Path("app/build.gradle.kts")
+          p = Path("project/app/src/main/java/com/sonam/assistant/NeonView.kt")
+
+          p.write_text(r'''package com.sonam.assistant
+
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.util.AttributeSet
+import android.view.View
+import kotlin.math.sin
+
+class NeonView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : View(context, attrs, defStyleAttr) {
+
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var t = 0f
+
+    init {
+        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        canvas.drawColor(Color.rgb(5, 5, 9))
+
+        val cx = width / 2f
+        val cy = height / 2f
+        val pulse = 1f + 0.06f * sin(t.toDouble()).toFloat()
+        val radius = minOf(width, height) * 0.24f * pulse
+
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 10f
+        paint.color = Color.rgb(80, 180, 255)
+        paint.setShadowLayer(45f, 0f, 0f, Color.rgb(0, 170, 255))
+        canvas.drawCircle(cx, cy, radius, paint)
+
+        paint.strokeWidth = 3f
+        paint.color = Color.rgb(210, 90, 255)
+        paint.setShadowLayer(28f, 0f, 0f, Color.rgb(210, 90, 255))
+        canvas.drawCircle(cx, cy, radius * 1.18f, paint)
+
+        paint.clearShadowLayer()
+
+        t += 0.045f
+        postInvalidateOnAnimation()
+    }
+}
+''')
+
+          p = Path("project/app/build.gradle.kts")
           s = p.read_text()
 
-          s = s.replace(
-              'targetSdk = 35\n',
-              'targetSdk = 35\n\n    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }\n'
-          )
+          if "compileOptions" not in s:
+              s = s.replace(
+                  "targetSdk = 35\n",
+                  """targetSdk = 35
 
-          s += '\n\nkotlin {\n    jvmToolchain(17)\n}\n'
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+"""
+              )
+
+          if "jvmToolchain" not in s:
+              s += "\n\nkotlin {\n    jvmToolchain(17)\n}\n"
 
           p.write_text(s)
           PY
