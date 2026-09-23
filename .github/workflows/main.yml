@@ -25,6 +25,25 @@ jobs:
           mkdir project
           unzip -q Sonam-AI-Voice-Assistant-starter.zip -d project
 
+      - name: Fix Java and Kotlin JVM targets
+        run: |
+          cd project
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/build.gradle.kts")
+          s = p.read_text()
+
+          s = s.replace(
+              'targetSdk = 35\n',
+              'targetSdk = 35\n\n    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }\n'
+          )
+
+          s += '\n\nkotlin {\n    jvmToolchain(17)\n}\n'
+
+          p.write_text(s)
+          PY
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
