@@ -1,4 +1,4 @@
-namename: Build Sonam APK
+name: Build Sonam APK
 
 on:
   workflow_dispatch:
@@ -20,87 +20,29 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Extract Android project
+      - name: Extract project
         run: |
           mkdir project
           unzip -q Sonam-AI-Voice-Assistant-starter.zip -d project
 
-      - name: Fix Android project
+      - name: Fix NeonView
+        run: |
+          sed -i 's/import android.content.Context/import android.content.Context\nimport android.util.AttributeSet/' project/app/src/main/java/com/sonam/assistant/NeonView.kt
+          sed -i 's/class NeonView(context: Context) : View(context) {/class NeonView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) : View(context, attrs, defStyleAttr) {/' project/app/src/main/java/com/sonam/assistant/NeonView.kt
+
+      - name: Fix JVM targets
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          p = Path("project/app/src/main/java/com/sonam/assistant/NeonView.kt")
-
-          p.write_text(r'''package com.sonam.assistant
-
-import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.util.AttributeSet
-import android.view.View
-import kotlin.math.sin
-
-class NeonView @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
-
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var t = 0f
-
-    init {
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        canvas.drawColor(Color.rgb(5, 5, 9))
-
-        val cx = width / 2f
-        val cy = height / 2f
-        val pulse = 1f + 0.06f * sin(t.toDouble()).toFloat()
-        val radius = minOf(width, height) * 0.24f * pulse
-
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 10f
-        paint.color = Color.rgb(80, 180, 255)
-        paint.setShadowLayer(45f, 0f, 0f, Color.rgb(0, 170, 255))
-        canvas.drawCircle(cx, cy, radius, paint)
-
-        paint.strokeWidth = 3f
-        paint.color = Color.rgb(210, 90, 255)
-        paint.setShadowLayer(28f, 0f, 0f, Color.rgb(210, 90, 255))
-        canvas.drawCircle(cx, cy, radius * 1.18f, paint)
-
-        paint.clearShadowLayer()
-
-        t += 0.045f
-        postInvalidateOnAnimation()
-    }
-}
-''')
-
           p = Path("project/app/build.gradle.kts")
           s = p.read_text()
-
-          if "compileOptions" not in s:
-              s = s.replace(
-                  "targetSdk = 35\n",
-                  """targetSdk = 35
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-"""
-              )
-
+          s = s.replace(
+              "android {\n",
+              "android {\n    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }\n",
+              1
+          )
           if "jvmToolchain" not in s:
               s += "\n\nkotlin {\n    jvmToolchain(17)\n}\n"
-
           p.write_text(s)
           PY
 
@@ -117,4 +59,4 @@ class NeonView @JvmOverloads constructor(
         uses: actions/upload-artifact@v4
         with:
           name: Sonam-debug-apk
-          path: project/app/build/outputs/apk/debug/app-debug.apk
+          path: project/app/build/outputs/apk/debug/app-debug.apkapk
